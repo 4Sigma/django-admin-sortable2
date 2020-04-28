@@ -35,7 +35,7 @@ from django.http import (
     HttpResponse, HttpResponseBadRequest,
     HttpResponseNotAllowed, HttpResponseForbidden)
 
-__all__ = ['SortableAdminMixin', 'SortableInlineAdminMixin']
+__all__ = ['SortableAdminMixin', 'SortableInlineAdminMixin', 'SortableInlineArrowAdminMixin']
 
 
 def _get_default_ordering(model, model_admin):
@@ -84,6 +84,20 @@ class SortableAdminBase(object):
         ]
         return super(SortableAdminBase, self).media + widgets.Media(css=css, js=js)
 
+class SortableAdminArrowBase(object):
+    @property
+    def media(self):
+        css = {'all': ('adminsortable2/css/sortable-arrows.css',)}
+        js = [
+            'admin/js/jquery.init.js',
+            'adminsortable2/js/plugins/admincompat.js',
+            'adminsortable2/js/libs/jquery.ui.core-1.11.4.js',
+            'adminsortable2/js/libs/jquery.ui.widget-1.11.4.js',
+            'adminsortable2/js/libs/jquery.ui.mouse-1.11.4.js',
+            'adminsortable2/js/libs/jquery.ui.touch-punch-0.2.3.js',
+            'adminsortable2/js/libs/jquery.ui.sortable-1.11.4.js',
+        ]
+        return super(SortableAdminArrowBase, self).media + widgets.Media(css=css, js=js)
 
 class SortableAdminMixin(SortableAdminBase):
     BACK, FORWARD, FIRST, LAST, EXACT = range(5)
@@ -459,6 +473,59 @@ class CustomInlineFormSet(BaseInlineFormSet):
             form.save_m2m()
         return obj
 
+
+class SortableInlineArrowAdminMixin(SortableAdminArrowBase):
+    formset = CustomInlineFormSet
+
+    def get_fields(self, request, obj=None):
+        fields = super(SortableInlineArrowAdminMixin, self).get_fields(request, obj)
+        _, default_order_field = _get_default_ordering(self.model, self)
+        fields = list(fields)
+
+        if not (default_order_field in fields):
+            # If the order field is not in the field list, add it
+            fields.append(default_order_field)
+        elif fields[0] == default_order_field:
+            """
+            Remove the order field and add it again immediately to ensure it is not on first position.
+            This ensures that django's template for tabular inline renders the first column with colspan="2":
+
+            ```
+            {% for field in inline_admin_formset.fields %}
+                {% if not field.widget.is_hidden %}
+                    <th{% if forloop.first %} colspan="2"{% endif %}
+            ```
+
+            See https://github.com/jrief/django-admin-sortable2/issues/82
+            """
+            fields.append(fields.pop(0))
+
+        return fields
+
+    @property
+    def media(self):
+        shared = (
+            super(SortableInlineArrowAdminMixin, self).media
+                    + widgets.Media(js=(
+                                                'adminsortable2/js/libs/jquery.ui.sortable-1.11.4.js',
+                                                'adminsortable2/js/inline-sortable-arrows.js',))
+            )
+        if isinstance(self, admin.StackedInline):
+            x = shared  + widgets.Media(js=('adminsortable2/js/inline-sortable-arrows.js',
+                                                        'adminsortable2/js/inline-stacked.js'))
+            return x
+        if isinstance(self, admin.TabularInline):
+            return shared + widgets.Media(
+                js=('adminsortable2/js/inline-sortable-arrows.js',
+                    'adminsortable2/js/inline-tabular.js'))
+
+    @property
+    def template(self):
+        if isinstance(self, admin.StackedInline):
+            return 'adminsortable2/stacked-arrows.html'
+        if isinstance(self, admin.TabularInline):
+            return 'adminsortable2/tabular-arrows.html'
+        raise ImproperlyConfigured('Class {0}.{1} must also derive from admin.TabularInline or admin.StackedInline'.format(self.__module__, self.__class__))
 
 class SortableInlineAdminMixin(SortableAdminBase):
     formset = CustomInlineFormSet
