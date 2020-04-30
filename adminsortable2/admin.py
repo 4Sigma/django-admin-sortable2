@@ -34,9 +34,14 @@ from django.forms import widgets
 from django.http import (
     HttpResponse, HttpResponseBadRequest,
     HttpResponseNotAllowed, HttpResponseForbidden)
+from django.conf import settings
 
 __all__ = ['SortableAdminMixin', 'SortableInlineAdminMixin', 'SortableInlineArrowAdminMixin']
 
+try:
+    AUTO_ORDER = settings.ADMINSORTABLE2_AUTO_ORDER
+except AttributeError:
+    AUTO_ORDER = False
 
 def _get_default_ordering(model, model_admin):
     try:
@@ -319,11 +324,24 @@ class SortableAdminMixin(SortableAdminBase):
             try:
                 obj = model.objects.get(**obj_filters)
             except model.MultipleObjectsReturned:
-                msg = "Detected non-unique values in field '{0}' used for sorting this model.\nConsider to run \n"\
-                      "    python manage.py reorder {1}\n"\
-                      "to adjust this inconsistency."
-                # noinspection PyProtectedMember
-                raise model.MultipleObjectsReturned(msg.format(rank_field, model._meta.label))
+                if AUTO_ORDER == True:
+                    # Run order script for model... Quite nice...
+                    orderfield = model._meta.ordering[0]
+                    if orderfield[0] == '-':
+                        orderfield = orderfield[1:]
+
+                    for order, obj in enumerate(model.objects.iterator(), start=1):
+                        setattr(obj, orderfield, order)
+                        obj.save()
+
+                    # After order should be ok, get obj
+                    obj = model.objects.get(**obj_filters)
+                else:
+                    msg = "Detected non-unique values in field '{0}' used for sorting this model.\nConsider to run \n"\
+                          "    python manage.py reorder {1}\n"\
+                          "to adjust this inconsistency."
+                    # noinspection PyProtectedMember
+                    raise model.MultipleObjectsReturned(msg.format(rank_field, model._meta.label))
 
             move_qs = model.objects.filter(**move_filter).order_by(order_by)
             move_objs = list(move_qs)
