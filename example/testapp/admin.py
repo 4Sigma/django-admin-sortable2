@@ -3,12 +3,12 @@ from __future__ import unicode_literals
 
 from django.contrib import admin
 
-from adminsortable2.admin import SortableAdminMixin, SortableInlineAdminMixin
+from adminsortable2.admin import SortableAdminMixin, SortableInlineAdminMixin, SortableInlineArrowAdminMixin
 
 from . import models
 
 
-class ChapterInline(SortableInlineAdminMixin, admin.StackedInline):
+class ChapterInline(SortableInlineArrowAdminMixin, admin.StackedInline):
     model = models.Chapter
     extra = 1
 

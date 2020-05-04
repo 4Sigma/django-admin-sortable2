@@ -35,6 +35,8 @@ STATIC_ROOT = '/home/static/'
 # Example: "http://media.lawrence.com/static/"
 STATIC_URL = '/static/'
 
+ADMINSORTABLE2_AUTO_ORDER = True
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
