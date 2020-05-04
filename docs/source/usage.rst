@@ -218,6 +218,18 @@ Setup the Tabular Inlines to enable Buttons to be sorted in Django Admin
 	    inlines = (ButtonTabularInline,)
 
 
+Sortable With Arrow
+===================
+Field could be moved with a Arrow inside of drag and drop.
+
+``admin.py``
+
+.. code:: python
+
+	class ChapterInline(SortableInlineArrowAdminMixin, admin.StackedInline):
+	    model = models.Chapter
+	    extra = 1
+
 Initial data
 ============
 
